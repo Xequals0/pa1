@@ -1,6 +1,33 @@
 #include <stdio.h>
+#include <string>
 #include <string.h>
+#include <iostream>
+#include <fstream>
 #include <stdlib.h>
+#include <pthread.h> 
+
+using namespace std;
+
+string* split(int numMaps, ifstream& file)
+{
+	string* out = new string[numMaps];
+	string word;
+	int i = 0;
+	
+	while(file >> word)
+	{
+		out[i % numMaps] += word + " ";
+		i++;
+	}
+
+	return out;
+}
+
+void* mapWordCount(void * input)
+{
+	string inString = *reinterpret_cast<string*>(input);
+	cout << inString + "\n\n";
+}
 
 int main(int argc, const char* argv[])
 {
@@ -78,5 +105,29 @@ int main(int argc, const char* argv[])
 		}
 	}
 
-	printf("%s:%s:%d:%d:%s:%s", app, impl, num_maps, num_reduces, input_file, output_file);
+	printf("%s:%s:%d:%d:%s:%s\n", app, impl, num_maps, num_reduces, input_file, output_file);
+
+	if(strcmp(app,"wordcount") == 0)
+	{
+		ifstream file(input_file);
+		string* splitStrings = split(num_maps, file);
+
+		if(strcmp(impl, "threads") == 0)
+		{
+			pthread_t mapThreads[num_maps];
+			int i;
+			int ret;
+
+			for(i = 0; i < num_maps; i++)
+			{
+				ret = pthread_create(&mapThreads[i], NULL, mapWordCount, (void*)&splitStrings[i]);
+			}
+
+			for(i = 0; i < num_maps; i++)
+			{
+				pthread_join(mapThreads[i], NULL);
+			}
+
+		}
+	}
 }
