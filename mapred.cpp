@@ -29,9 +29,15 @@ void* mapWordCount(void * input)
 	cout << inString + "\n\n";
 }
 
+void* mapIntegerSort(void * input)
+{
+	string inString = *reinterpret_cast<string*>(input);
+	cout << inString + "\n\n";
+}
+
 int main(int argc, const char* argv[])
 {
-	char app[10];
+	void* (*app)(void*);
 	char impl[8];
 	char* input_file;
 	char* output_file;
@@ -44,12 +50,19 @@ int main(int argc, const char* argv[])
 		if(strcmp(argv[i], "--app") == 0)
 		{
 			i++;
-			if(!(strcmp(argv[i], "wordcount") == 0 || strcmp(argv[i], "sort") == 0))
+			if(strcmp(argv[i], "wordcount") == 0)
+			{
+				app = &mapWordCount;
+			}
+			else if(strcmp(argv[i], "sort") == 0)
+			{
+				app = &mapIntegerSort; 
+			}
+			else
 			{
 				printf("Invalid app\n");
 				return -1;
 			}
-			strcpy(app, argv[i]);
 		}
 		else if(strcmp(argv[i], "--impl") == 0)
 		{
@@ -105,29 +118,31 @@ int main(int argc, const char* argv[])
 		}
 	}
 
-	printf("%s:%s:%d:%d:%s:%s\n", app, impl, num_maps, num_reduces, input_file, output_file);
+	printf("%s:%d:%d:%s:%s\n", impl, num_maps, num_reduces, input_file, output_file);
 
-	if(strcmp(app,"wordcount") == 0)
+	ifstream file(input_file);
+	string* splitStrings = split(num_maps, file);
+
+	//threads
+	if(strcmp(impl, "threads") == 0)
 	{
-		ifstream file(input_file);
-		string* splitStrings = split(num_maps, file);
-
-		if(strcmp(impl, "threads") == 0)
+		pthread_t mapThreads[num_maps];
+		int i;
+		int ret;
+		for(i = 0; i < num_maps; i++)
 		{
-			pthread_t mapThreads[num_maps];
-			int i;
-			int ret;
-
-			for(i = 0; i < num_maps; i++)
-			{
-				ret = pthread_create(&mapThreads[i], NULL, mapWordCount, (void*)&splitStrings[i]);
-			}
-
-			for(i = 0; i < num_maps; i++)
-			{
-				pthread_join(mapThreads[i], NULL);
-			}
-
+			ret = pthread_create(&mapThreads[i], NULL, app, (void*)&splitStrings[i]);
 		}
+
+		for(i = 0; i < num_maps; i++)
+		{
+			pthread_join(mapThreads[i], NULL);
+		}
+
+	}
+	//proccesses
+	else
+	{
+
 	}
 }
