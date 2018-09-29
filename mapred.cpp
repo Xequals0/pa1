@@ -4,7 +4,12 @@
 #include <iostream>
 #include <fstream>
 #include <stdlib.h>
-#include <pthread.h> 
+#include <pthread.h>
+#include <list>
+#include <map>
+#include <iterator>
+#include <boost/algorithm/string.hpp>
+#include <vector> 
 
 using namespace std;
 
@@ -25,8 +30,32 @@ string* split(int numMaps, ifstream& file)
 
 void* mapWordCount(void * input)
 {
-	string inString = *reinterpret_cast<string*>(input);
-	cout << inString + "\n\n";
+	string s = *reinterpret_cast<string*>(input);
+	multimap<string, int>* map = new multimap<string, int>;
+    
+	vector<string> parts;
+	boost::split(parts, s, boost::is_any_of(" .,;:!-"));
+
+	vector<string>::iterator vec_itr;
+
+	for(vec_itr = parts.begin(); vec_itr != parts.end(); vec_itr++){
+	       // cout << *vec_itr << '\n';
+        
+		multimap <string, int> :: iterator map_itr = map->find(*vec_itr);
+        	if ( map_itr == map->end() ) {
+            		map->insert(make_pair(*vec_itr, 1));
+      		}
+		else {
+           		map_itr->second = map_itr->second + 1;
+        	}
+  	}
+    
+    multimap <string, int> :: iterator itr2;
+    for(itr2 = map->begin(); itr2 != map->end(); itr2++){
+        cout << itr2->first << '\t' << itr2->second << '\n';
+    }
+    
+    return (void*)map;
 }
 
 void* mapIntegerSort(void * input)
