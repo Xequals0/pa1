@@ -12,6 +12,8 @@
 #include <iterator>
 #include <boost/algorithm/string.hpp>
 #include <vector>
+#include <sstream>
+#include <algorithm>
 
 using namespace std;
 
@@ -20,70 +22,67 @@ multimap<string, int>*  map_wordCount(string s) {
     
     multimap<string, int>* map = new multimap<string, int>;
     
-	vector<string> parts;
-	boost::split(parts, s, boost::is_any_of(" .,;:!-"));
+    vector<string> parts;
+    trim_if(s, boost::is_any_of(" .,;:!-"));
+    boost::split(parts, s, boost::is_any_of(" .,;:!-"),boost::token_compress_on);
 
-	vector<string>::iterator vec_itr;
-
-	for(vec_itr = parts.begin(); vec_itr != parts.end(); vec_itr++){
-	       // cout << *vec_itr << '\n';
-        
-		multimap <string, int> :: iterator map_itr = map->find(*vec_itr);
-        	if ( map_itr == map->end() ) {
-            		map->insert(make_pair(*vec_itr, 1));
-      		}
-		else {
-           		map_itr->second = map_itr->second + 1;
-        	}
-  	}
+  vector<string>::iterator vec_itr;
     
+    for(vec_itr = parts.begin(); vec_itr != parts.end(); vec_itr++){
+	//cout << "*vec_itr: " << *vec_itr << '\n';        
+        multimap <string, int> :: iterator map_itr = map->find(*vec_itr);
+        if ( map_itr == map->end() ) {
+            map->insert(make_pair(*vec_itr, 1));
+        }
+        else {
+            map_itr->second = map_itr->second + 1;
+        }
+    }
     multimap <string, int> :: iterator itr2;
     for(itr2 = map->begin(); itr2 != map->end(); itr2++){
         cout << itr2->first << '\t' << itr2->second << '\n';
     }
-    
+
     return map ;
 }
 
-
-int main(int argc, const char * argv[]) {
-    // insert code here...
-    /*
-    multimap<string, int> map;
-
-    //map.insert(pair <string, int> ("banana", 1));
-    //map.insert(pair <string, int> ("banana", 2));
-    //map.insert(pair <string, int> ("apple", 1));
-    //map.insert(pair <string, int> ("cookie", 1));
+multimap<int, int>*  map_IntegerSort(string s) {
     
-    list < pair <string, int> > list;
-    list.push_front(make_pair("donut", 1));
-    list.push_front(make_pair("apple", 1));
-    list.push_front(make_pair("banana", 1));
-    list.push_front(make_pair("cookie", 2));
-    list.push_front(make_pair("cookie", 1));
+    multimap<int, int>* map = new multimap<int, int>;
     
-    std::list < pair <string, int> >::iterator itr;
+    vector<string> parts;
+    boost::split(parts, s, boost::is_any_of(" .,;:!-"),boost::token_compress_on);    
+    vector<string>::iterator vec_itr;
     
-    for(itr = list.begin(); itr != list.end(); itr++){
-        cout << "itr->first: " << itr->first << '\t'
-             << "itr->second: " << itr->second << '\n';
+    for(vec_itr = parts.begin(); vec_itr != parts.end(); vec_itr++){
         
-        multimap <string, int> :: iterator map_itr = map.find(itr->first);
-        if ( map_itr == map.end() ) {
-            map.insert(make_pair(itr->first, itr->second));
-        } else {
-            map_itr->second = map_itr->second + itr->second;
+	int num;
+	if ( ! (istringstream(*vec_itr) >> num) ) 
+		num = 0;
+        
+	if((*vec_itr)[0] != '0' && num == 0) continue; 
+	
+	multimap <int, int> :: iterator map_itr = map->find(num);
+        if ( map_itr == map->end() ) {
+            map->insert(make_pair(num, 1));
+        }
+        else {
+            map_itr->second = map_itr->second + 1;
         }
     }
-
-    multimap <string, int> :: iterator itr2;
-    for(itr2 = map.begin(); itr2 != map.end(); itr2++){
+    
+    multimap <int, int> :: iterator itr2;
+    for(itr2 = map->begin(); itr2 != map->end(); itr2++){
         cout << itr2->first << '\t' << itr2->second << '\n';
     }
-    */
+    
+   
+    return map;
+}
 
-	map_wordCount("banana;apple.cookie;apple,apple");
-	
+int main(int argc, const char * argv[]) {
+
+    map_IntegerSort("23;18;23...!!!;;1:22.2;0.000000000");
+       
     return -1;
 }
