@@ -50,11 +50,6 @@ void* mapWordCount(void * input)
         	}
   	}
     
-    multimap <string, int> :: iterator itr2;
-    for(itr2 = map->begin(); itr2 != map->end(); itr2++){
-        cout << itr2->first << '\t' << itr2->second << '\n';
-    }
-    
     return (void*)map;
 }
 
@@ -156,8 +151,10 @@ int main(int argc, const char* argv[])
 	if(strcmp(impl, "threads") == 0)
 	{
 		pthread_t mapThreads[num_maps];
+		multimap<string, int>** returnValues = new multimap<string, int>*[num_maps];
 		int i;
 		int ret;
+
 		for(i = 0; i < num_maps; i++)
 		{
 			ret = pthread_create(&mapThreads[i], NULL, app, (void*)&splitStrings[i]);
@@ -165,9 +162,13 @@ int main(int argc, const char* argv[])
 
 		for(i = 0; i < num_maps; i++)
 		{
-			pthread_join(mapThreads[i], NULL);
+			pthread_join(mapThreads[i], (void **)&returnValues[i]);
 		}
 
+    	multimap <string, int> :: iterator itr2;
+    	for(itr2 = returnValues[0]->begin(); itr2 != returnValues[0]->end(); itr2++){
+        	cout << itr2->first << '\t' << itr2->second << '\n';
+    	}		
 	}
 	//proccesses
 	else
