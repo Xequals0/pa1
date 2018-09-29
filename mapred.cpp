@@ -4,7 +4,12 @@
 #include <iostream>
 #include <fstream>
 #include <stdlib.h>
-#include <pthread.h> 
+#include <pthread.h>
+#include <list>
+#include <map>
+#include <iterator>
+#include <boost/algorithm/string.hpp>
+#include <vector> 
 
 using namespace std;
 
@@ -25,8 +30,27 @@ string* split(int numMaps, ifstream& file)
 
 void* mapWordCount(void * input)
 {
-	string inString = *reinterpret_cast<string*>(input);
-	cout << inString + "\n\n";
+	string s = *reinterpret_cast<string*>(input);
+	multimap<string, int>* map = new multimap<string, int>;
+    
+	vector<string> parts;
+	boost::split(parts, s, boost::is_any_of(" .,;:!-"));
+
+	vector<string>::iterator vec_itr;
+
+	for(vec_itr = parts.begin(); vec_itr != parts.end(); vec_itr++){
+	       // cout << *vec_itr << '\n';
+        
+		multimap <string, int> :: iterator map_itr = map->find(*vec_itr);
+        	if ( map_itr == map->end() ) {
+            		map->insert(make_pair(*vec_itr, 1));
+      		}
+		else {
+           		map_itr->second = map_itr->second + 1;
+        	}
+  	}
+    
+    return (void*)map;
 }
 
 void* mapIntegerSort(void * input)
@@ -127,8 +151,10 @@ int main(int argc, const char* argv[])
 	if(strcmp(impl, "threads") == 0)
 	{
 		pthread_t mapThreads[num_maps];
+		multimap<string, int>** returnValues = new multimap<string, int>*[num_maps];
 		int i;
 		int ret;
+
 		for(i = 0; i < num_maps; i++)
 		{
 			ret = pthread_create(&mapThreads[i], NULL, app, (void*)&splitStrings[i]);
@@ -136,9 +162,13 @@ int main(int argc, const char* argv[])
 
 		for(i = 0; i < num_maps; i++)
 		{
-			pthread_join(mapThreads[i], NULL);
+			pthread_join(mapThreads[i], (void **)&returnValues[i]);
 		}
 
+    	multimap <string, int> :: iterator itr2;
+    	for(itr2 = returnValues[0]->begin(); itr2 != returnValues[0]->end(); itr2++){
+        	cout << itr2->first << '\t' << itr2->second << '\n';
+    	}		
 	}
 	//proccesses
 	else
