@@ -18,6 +18,29 @@
 using namespace std;
 
 
+void testingSharedMemory{
+    const int SIZE = sizeof(multimap<string,int>) + 3 * sizeof(pair<string, int>); //want to enter 3 <string, int> into hashtable
+    
+    const char *name = "name";
+    
+    int shm_fd;
+    
+    multimap<string,int>* ptr;
+    
+    shm_fd = shm_open(name, O_CREAT | O_RDWR, 0666);
+    
+    ftruncate(shm_fd, SIZE);
+    
+    ptr = (multimap<string,int>*) mmap(0, SIZE, PROT_WRITE, MAP_SHARED, shm_fd, 0);
+    
+    //Writing to shared memory object
+    
+    //I get seg fault here
+    ptr->insert(make_pair("a", 1));
+    ptr->insert(make_pair("b", 1));
+    ptr->insert(make_pair("c", 1));
+}
+
 multimap<string, int>*  map_wordCount(string s) {
     
     multimap<string, int>* map = new multimap<string, int>;
