@@ -10,9 +10,11 @@
 #include <iterator>
 #include <boost/algorithm/string.hpp>
 #include <vector>
-#include <sstream>
+#include <math.h> 
 
 using namespace std;
+
+const char* sharedMem = "memory";
 
 string* split(int numMaps, ifstream& file)
 {
@@ -38,66 +40,94 @@ void* mapWordCount(void * input)
     trim_if(s, boost::is_any_of(" .,;:!-"));
     boost::split(parts, s, boost::is_any_of(" .,;:!-"),boost::token_compress_on);
 
-	vector<string>::iterator vec_itr;
-
-	for(vec_itr = parts.begin(); vec_itr != parts.end(); vec_itr++){
-	       // cout << *vec_itr << '\n';
-        
-		multimap <string, int> :: iterator map_itr = map->find(*vec_itr);
-        	if ( map_itr == map->end() ) {
-            		map->insert(make_pair(*vec_itr, 1));
-      		}
-		else {
-           		map_itr->second = map_itr->second + 1;
-        	}
-  	}
-    
-    /*
-    multimap <string, int> :: iterator itr2;
-    for(itr2 = map->begin(); itr2 != map->end(); itr2++){
-        cout << itr2->first << '\t' << itr2->second << '\n';
-    }
-    */
-    
-    return (void*)map;
-}
-
-void* mapIntegerSort(void * input)
-{
-	string s = *reinterpret_cast<string*>(input);
-	cout << s + "\n\n";
-    
-    multimap<int, int>* map = new multimap<int, int>;
-    
-    vector<string> parts;
-    boost::split(parts, s, boost::is_any_of(" .,;:!-"),boost::token_compress_on);
-    vector<string>::iterator vec_itr;
+  	vector<string>::iterator vec_itr;
     
     for(vec_itr = parts.begin(); vec_itr != parts.end(); vec_itr++){
-        
-        int num;
-        if ( ! (istringstream(*vec_itr) >> num) )
-            num = 0;
-        
-        if((*vec_itr)[0] != '0' && num == 0) continue;
-        
-        multimap <int, int> :: iterator map_itr = map->find(num);
+	//cout << "*vec_itr: " << *vec_itr << '\n';        
+        multimap <string, int> :: iterator map_itr = map->find(*vec_itr);
         if ( map_itr == map->end() ) {
-            map->insert(make_pair(num, 1));
+            map->insert(make_pair(*vec_itr, 1));
         }
         else {
             map_itr->second = map_itr->second + 1;
         }
     }
-    
-   /* multimap <int, int> :: iterator itr2;
-    for(itr2 = map->begin(); itr2 != map->end(); itr2++){
-        cout << itr2->first << '\t' << itr2->second << '\n';
-    }
-    */
-    
-    return (void *)map;
+
+    return map;
 }
+
+multimap <string, int>* wordShuffle(multimap <string, int> *ptr[], int num_maps, int num_reduces)
+{       
+     int i = 0; int part_size = 0;
+     char* partition = (char*)malloc(sizeof(char)*(num_reduces - 1));
+     multimap <string, int> b1;
+     multimap <string, int> :: iterator itr;
+    
+     int split_val = 0;
+     if(num_reduces != 1) {
+     	split_val = floor(26 / (num_reduces - 1));
+        for(i = 0; i < (num_reduces - 1); i++)
+        {
+  	      if(i == 0)
+          {  
+            partition[i] = 'a' + split_val;
+          }
+          else
+          {
+            partition[i] = partition[i -1] + split_val;
+          }
+        } part_size = i;
+    }
+
+      multimap <string, int> *toReduce = new multimap <string, int> [num_reduces];
+      multimap <string, int> current;
+      multimap <string, int> :: iterator traverse;
+      int index = 0; i = 0;
+      for(i = 0; i < num_maps; i++){
+        current = *ptr[i]; 
+        for (traverse = current.begin(); traverse != current.end(); traverse++) 
+        { 
+             string word = traverse -> first;
+             int j;
+             for(j = 0; j < part_size; j++)
+             {
+                  if(num_reduces == 1)
+                  {
+                       index = 0;
+                       break;
+                  }
+                  else if((num_reduces == 2) && (tolower(word.at(0)) < 'n'))
+                  {
+                       index = 0;
+                       break;
+                  }
+                  else if((num_reduces == 2) && (tolower(word.at(0)) >= 'n'))
+                  {
+                       index = 1; 
+                       break;
+                  }
+                  else if(tolower(word.at(0)) < partition[j])
+                  {
+                       index = j;
+                       break;
+                  }
+                  else if((j == part_size - 1)||(tolower(word.at(0)) >= partition[part_size - 1]))
+                  {
+                       index = num_reduces - 1;
+                       break;
+                  }
+             }
+             *toReduce[index].insert(make_pair <string, int> (traverse -> first, traverse -> second));
+        } 
+     } free(partition);
+     return toReduce;
+}
+
+void* mapIntegerSort(void * input)
+{
+	string inString = *reinterpret_cast<string*>(input);
+	cout << inString + "\n\n";
+} 
 
 int main(int argc, const char* argv[])
 {
@@ -192,6 +222,7 @@ int main(int argc, const char* argv[])
 	{
 		pthread_t mapThreads[num_maps];
 		multimap<string, int>** returnValues = new multimap<string, int>*[num_maps];
+		multimap<string, int>* shuffledMap = new multimap<string, int>[num_reduces];
 		int i;
 		int ret;
 
@@ -205,10 +236,12 @@ int main(int argc, const char* argv[])
 			pthread_join(mapThreads[i], (void **)&returnValues[i]);
 		}
 
-    	multimap <string, int> :: iterator itr2;
-    	for(itr2 = returnValues[0]->begin(); itr2 != returnValues[0]->end(); itr2++){
+		shuffledMap = wordShuffle(returnValues, num_maps, num_reduces);
+
+		multimap <string, int> :: iterator itr2;
+    	for(itr2 = shuffledMap[2].begin(); itr2 != shuffledMap[2].end(); itr2++){
         	cout << itr2->first << '\t' << itr2->second << '\n';
-    	}		
+    	}
 	}
 	//proccesses
 	else
