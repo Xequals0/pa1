@@ -23,7 +23,7 @@
 using namespace std;
 
 const char* mem = "memory";
-const char* sema = "sem";
+const char* sema = "semaphore";
 const int SIZE = 100000;
 sem_t mutex;
 sem_t * sem;
@@ -90,7 +90,6 @@ void* mapWordCount(void * input)
    	else
    	{
    		sem_wait(sem);
-		puts("HIIII");
     	int shm_fd = shm_open(mem, O_RDWR, 0666);
    		char* ptr = (char*)mmap(0, SIZE, PROT_WRITE, MAP_SHARED, shm_fd, 0);
    		int off;
@@ -326,7 +325,7 @@ int main(int argc, const char* argv[])
     	}
 
     	shm_unlink(mem);
-    	//destroy semaphore
+    	sem_destroy(&mutex);
 	}
 	//proccesses
 	else
@@ -334,15 +333,15 @@ int main(int argc, const char* argv[])
 		multimap<string, int>** returnValues = new multimap<string, int>*[num_maps];
 
 		int shm_fd = shm_open(mem, O_CREAT | O_RDWR, 0666);
-    	ftruncate(shm_fd, SIZE);
+    ftruncate(shm_fd, SIZE);
 
-   		char* ptr = (char*)mmap(0, SIZE, PROT_WRITE, MAP_SHARED, shm_fd, 0);
-   		int temp = 0;
-   		memcpy(ptr, &temp, sizeof(int));
+ 		char* ptr = (char*)mmap(0, SIZE, PROT_WRITE, MAP_SHARED, shm_fd, 0);
+		int temp = 0;
+ 		memcpy(ptr, &temp, sizeof(int));
 
-   		sem = sem_open(sema, O_CREAT | O_RDWR, 0644, 1); 
+		sem = sem_open(sema, O_CREAT | O_RDWR, 0644, 1); 
 
-    	pid_t pid;
+  	pid_t pid;
 
 		for(i = 0; i < num_maps; i++)
 		{
@@ -357,7 +356,7 @@ int main(int argc, const char* argv[])
 
 		while(wait(NULL) > 0);
 
-   		ptr += sizeof(int);
+ 		ptr += sizeof(int);
 		for(i = 0; i < num_maps; i++)
 		{
     		int len;
@@ -375,9 +374,9 @@ int main(int argc, const char* argv[])
 		}
 
 		multimap <string, int> :: iterator itr3;
-    	for(itr3= returnValues[0]->begin(); itr3 != returnValues[0]->end(); itr3++){
-        	cout << itr3->first << '\t' << itr3->second << '\n';
-    	}
+    for(itr3= returnValues[0]->begin(); itr3 != returnValues[0]->end(); itr3++){
+      	cout << itr3->first << '\t' << itr3->second << '\n';
+    }
     	
     	sem_close(sem);
     	shm_unlink(mem);
