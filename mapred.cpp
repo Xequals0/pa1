@@ -179,6 +179,105 @@ multimap <string, int>* wordShuffle(multimap <string, int> *ptr[], int num_maps,
      return toReduce;
 }
 
+multimap <int, int>* sortShuffle(multimap <int, int> *ptr[], int num_maps, int num_reduces)
+{
+     int i = 0; int part_size = 0;
+     int min = 0; int max = 0;
+     int t1 = 0;
+     int* partition = (int*)malloc(sizeof(int)*(num_reduces - 1));
+     multimap <int, int> a1;
+     multimap <int, int> :: iterator itr;
+
+     /*for(i = 0; i < num_maps; i++){
+        a1 = *ptr[i]; 
+        for (itr = a1.begin(); itr != a1.end(); itr++) 
+        { 
+             cout  <<  '\t' << itr->first  
+                   <<  '\t' << itr->second << '\n'; 
+        } 
+        cout << endl;
+     }*/
+
+
+     for(i = 0; i < num_maps; i++){
+        a1 = *ptr[i];
+        for (itr = a1.begin(); itr != a1.end(); itr++) 
+          {
+                  t1 = itr-> first;
+                  if(min > t1){
+                      min = t1;
+                  }
+                  if(max < t1){
+                      max = t1;
+                  }
+            }
+       }
+    
+     int split_val = 0;
+     if(num_reduces == 1) {
+     
+     }
+     else
+      {
+          split_val = floor((max - min)/(num_reduces - 1));
+          //cout << "split: " << max << ',' << min << ',' << split_val << '\n';
+          for(i = 0; i < (num_reduces - 1); i++)
+          {
+              if(i == 0)
+              {  
+                   partition[i] = min + split_val;
+              }
+              else
+              {
+                   partition[i] = partition[i -1] + split_val;
+              }
+          } part_size = i;
+      }
+
+      multimap <int, int> *toReduce = new multimap <int, int> [num_reduces];
+      multimap <int, int> current;
+      multimap <int, int> :: iterator traverse;
+      int index = 0; i = 0;
+      for(i = 0; i < num_maps; i++){
+        current = *ptr[i]; 
+        for (traverse = current.begin(); traverse != current.end(); traverse++) 
+        { 
+             int number = traverse -> first;
+             int j;
+             for(j = 0; j < part_size; j++)
+             {
+                  if(num_reduces == 1)
+                  {
+                       index = 0;
+                       break;
+                  }
+                  else if((num_reduces == 2) && (number < ((max + min)/2)))
+                  {
+                       index = 0;
+                       break;
+                  }
+                  else if((num_reduces == 2) && (number >= ((max + min)/2)))
+                  {
+                       index = 1; 
+                       break;
+                  }
+                  else if(number < partition[j])
+                  {
+                       index = j;
+                       break;
+                  }
+                  else if(number >= partition[part_size - 1])
+                  {
+                       index = num_reduces - 1;
+                       break;
+                  }
+             }
+             *toReduce[index].insert(make_pair <int, int> (traverse -> first, traverse -> second));
+        } 
+     } free(partition);
+     return toReduce;
+}
+
 void* mapIntegerSort(void * input)
 {
 	string inString = *reinterpret_cast<string*>(input);
