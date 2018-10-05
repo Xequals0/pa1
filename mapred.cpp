@@ -33,7 +33,9 @@ int offset = 0;
 struct comp {
     bool operator() (string s1, string s2) const
     {
-        int val = strcmp(s1, s2);
+	const char* a = s1.c_string();
+	const char* b = s2.c_string();	
+        int val = strcmp(a, b);
         if(val <= 0)
             return true;
         return false;
