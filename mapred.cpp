@@ -30,6 +30,17 @@ sem_t * sem;
 int threads = 0;
 int offset = 0;
 
+struct comp {
+    bool operator() (string s1, string s2) const
+    {
+        int val = strcmp(s1, s2);
+        if(val <= 0)
+            return true;
+        return false;
+        
+    }
+};
+
 string* split(int numMaps, ifstream& file)
 {
 	string* out = new string[numMaps];
@@ -48,7 +59,7 @@ string* split(int numMaps, ifstream& file)
 void* mapWordCount(void * input)
 {
 	string s = *reinterpret_cast<string*>(input);
-	multimap<string, int>* map = new multimap<string, int>;
+	multimap<string, int, comp>* map = new multimap<string, int, comp>;
     
 	vector<string> parts;
     trim_if(s, boost::is_any_of(" .,;:!-"));
