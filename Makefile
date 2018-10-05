@@ -1,4 +1,4 @@
-FLAGS = -W -Wall -pedantic -pthread -lboost_serialization -lrt
+FLAGS = -W -Wall -pthread -lboost_serialization -lrt
 CC = g++
 
 all: mapred
