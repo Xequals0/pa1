@@ -280,8 +280,32 @@ multimap <int, int>* sortShuffle(multimap <int, int> *ptr[], int num_maps, int n
 
 void* mapIntegerSort(void * input)
 {
-	string inString = *reinterpret_cast<string*>(input);
+	string s = *reinterpret_cast<string*>(input);
 	cout << inString + "\n\n";
+    
+    multimap<int, int>* map = new multimap<int, int>;
+    
+    vector<string> parts;
+    boost::split(parts, s, boost::is_any_of(" .,;:!-"),boost::token_compress_on);
+    vector<string>::iterator vec_itr;
+    
+    for(vec_itr = parts.begin(); vec_itr != parts.end(); vec_itr++){
+        
+        int num;
+        if ( ! (istringstream(*vec_itr) >> num) )
+            num = 0;
+        
+        if((*vec_itr)[0] != '0' && num == 0) continue;
+        
+        multimap <int, int> :: iterator map_itr = map->find(num);
+        if ( map_itr == map->end() ) {
+            map->insert(make_pair(num, 1));
+        }
+        else {
+            map_itr->second = map_itr->second + 1;
+        }
+    }
+    
 } 
 
 int main(int argc, const char* argv[])
