@@ -281,7 +281,7 @@ multimap <int, int>* sortShuffle(multimap <int, int> *ptr[], int num_maps, int n
 void* mapIntegerSort(void * input)
 {
 	string s = *reinterpret_cast<string*>(input);
-	cout << inString + "\n\n";
+	cout << s + "\n\n";
     
     multimap<int, int>* map = new multimap<int, int>;
     
@@ -343,7 +343,6 @@ void* mapIntegerSort(void * input)
     return NULL;
 }
     
-} 
 
 int main(int argc, const char* argv[])
 {
