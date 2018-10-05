@@ -306,6 +306,43 @@ void* mapIntegerSort(void * input)
         }
     }
     
+    stringstream ss;
+    boost::archive::text_oarchive oarch(ss);
+    oarch << map;
+    string temp = ss.str();
+    const char* ctemp = temp.c_str();
+    int size = strlen(ctemp)+1;
+    
+    if(threads)
+    {
+        sem_wait(&mutex);
+        int shm_fd = shm_open(mem, O_RDWR, 0666);
+        
+        char* ptr = (char*)mmap(0, SIZE, PROT_WRITE, MAP_SHARED, shm_fd, 0);
+        ptr += offset;
+        memcpy(ptr, &size, sizeof(size_t));
+        strcpy(ptr + sizeof(size_t), ctemp);
+        
+        offset += sizeof(size_t) + size;
+        sem_post(&mutex);
+    }
+    else
+    {
+        sem_wait(sem);
+        int shm_fd = shm_open(mem, O_RDWR, 0666);
+        char* ptr = (char*)mmap(0, SIZE, PROT_WRITE, MAP_SHARED, shm_fd, 0);
+        int off;
+        memcpy(&off, ptr, sizeof(int));
+        int temp = off + sizeof(size_t) + size;
+        memcpy(ptr, &temp, sizeof(int));
+        ptr += sizeof(int) + off;
+        memcpy(ptr, &size, sizeof(size_t));
+        strcpy(ptr + sizeof(size_t), ctemp);
+        sem_post(sem);
+    }
+    return NULL;
+}
+    
 } 
 
 int main(int argc, const char* argv[])
