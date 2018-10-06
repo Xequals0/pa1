@@ -154,8 +154,57 @@ void* reduceWordCount(void * input)
 
 void* reduceIntegerSort(void * input)
 {
-  return NULL;
-}
+    multimap<int, int>* inmap = reinterpret_cast<multimap<int,int>*>(input);
+    map<int, int>* outmap = new map<int,int>;
+    multimap<int, int> :: iterator itr;
+    
+    for(itr = inmap->begin(); itr != inmap->end(); itr++)
+    {
+        map <int, int> :: iterator map_itr = outmap->find(itr->first);
+        if ( map_itr == outmap->end() ) {
+            outmap->insert(make_pair(itr->first, itr->second));
+        }
+        else {
+            map_itr->second = map_itr->second + itr->second;
+        }
+    }
+    
+    stringstream ss;
+    boost::archive::text_oarchive oarch(ss);
+    oarch << outmap;
+    string temp = ss.str();
+    const char* ctemp = temp.c_str();
+    int size = strlen(ctemp)+1;
+    
+    if(threads)
+    {
+        sem_wait(&mutex);
+        int shm_fd = shm_open(mem, O_RDWR, 0666);
+        
+        char* ptr = (char*)mmap(0, SIZE, PROT_WRITE, MAP_SHARED, shm_fd, 0);
+        ptr += offset;
+        memcpy(ptr, &size, sizeof(int));
+        strcpy(ptr + sizeof(int), ctemp);
+        
+        offset += sizeof(int) + size;
+        sem_post(&mutex);
+    }
+    else
+    {
+        sem_wait(sem);
+        int shm_fd = shm_open(mem, O_RDWR, 0666);
+        char* ptr = (char*)mmap(0, SIZE, PROT_WRITE, MAP_SHARED, shm_fd, 0);
+        int off;
+        memcpy(&off, ptr, sizeof(int));
+        int temp = off + sizeof(int) + size;
+        memcpy(ptr, &temp, sizeof(int));
+        ptr += sizeof(int) + off;
+        memcpy(ptr, &size, sizeof(int));
+        strcpy(ptr + sizeof(int), ctemp);
+        sem_post(sem);
+    }
+    
+    return NULL;
 
 
 multimap <string, int>* wordShuffle(multimap <string, int> *ptr[], int num_maps, int num_reduces)
