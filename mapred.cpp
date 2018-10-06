@@ -1,26 +1,5 @@
-#include <stdio.h>
-#include <string>
-#include <string.h>
-#include <iostream>
-#include <fstream>
-#include <stdlib.h>
-#include <pthread.h>
-#include <list>
-#include <map>
-#include <iterator>
-#include <boost/algorithm/string.hpp>
-#include <vector>
-#include <math.h>
-#include <boost/serialization/map.hpp>
-#include <boost/archive/text_iarchive.hpp>
-#include <boost/archive/text_oarchive.hpp>
-#include <sstream>
-#include <sys/mman.h>
-#include <fcntl.h>
-#include <semaphore.h>
-#include <sys/wait.h>
 
-using namespace std;
+#include "mapred.h"
 
 const char* mem = "memory";
 const char* sema = "semaphore";
@@ -331,8 +310,67 @@ multimap <int, int>* sortShuffle(multimap <int, int> *ptr[], int num_maps, int n
 
 void* mapIntegerSort(void * input)
 {
-	string inString = *reinterpret_cast<string*>(input);
-	cout << inString + "\n\n";
+    string s = *reinterpret_cast<string*>(input);
+    cout << s + "\n\n";
+    
+    multimap<int, int>* map = new multimap<int, int>;
+    
+    vector<string> parts;
+    boost::split(parts, s, boost::is_any_of(" .,;:!-"),boost::token_compress_on);
+    vector<string>::iterator vec_itr;
+    
+    for(vec_itr = parts.begin(); vec_itr != parts.end(); vec_itr++){
+        
+        int num;
+        if ( ! (istringstream(*vec_itr) >> num) )
+            num = 0;
+        
+        if((*vec_itr)[0] != '0' && num == 0) continue;
+        
+        multimap <int, int> :: iterator map_itr = map->find(num);
+        if ( map_itr == map->end() ) {
+            map->insert(make_pair(num, 1));
+        }
+        else {
+            map_itr->second = map_itr->second + 1;
+        }
+    }
+    
+    stringstream ss;
+    boost::archive::text_oarchive oarch(ss);
+    oarch << map;
+    string temp = ss.str();
+    const char* ctemp = temp.c_str();
+    int size = strlen(ctemp)+1;
+    
+    if(threads)
+    {
+        sem_wait(&mutex);
+        int shm_fd = shm_open(mem, O_RDWR, 0666);
+        
+        char* ptr = (char*)mmap(0, SIZE, PROT_WRITE, MAP_SHARED, shm_fd, 0);
+        ptr += offset;
+        memcpy(ptr, &size, sizeof(size_t));
+        strcpy(ptr + sizeof(size_t), ctemp);
+        
+        offset += sizeof(size_t) + size;
+        sem_post(&mutex);
+    }
+    else
+    {
+        sem_wait(sem);
+        int shm_fd = shm_open(mem, O_RDWR, 0666);
+        char* ptr = (char*)mmap(0, SIZE, PROT_WRITE, MAP_SHARED, shm_fd, 0);
+        int off;
+        memcpy(&off, ptr, sizeof(int));
+        int temp = off + sizeof(size_t) + size;
+        memcpy(ptr, &temp, sizeof(int));
+        ptr += sizeof(int) + off;
+        memcpy(ptr, &size, sizeof(size_t));
+        strcpy(ptr + sizeof(size_t), ctemp);
+        sem_post(sem);
+    }
+    return NULL;
 }
 
 void combineAndOutput(void ** inMap, char* output_file, int num_reduces)
