@@ -203,9 +203,9 @@ void* reduceIntegerSort(void * input)
         strcpy(ptr + sizeof(int), ctemp);
         sem_post(sem);
     }
-    
-    return NULL;
 
+    return NULL;
+}
 
 multimap <string, int>* wordShuffle(multimap <string, int> *ptr[], int num_maps, int num_reduces)
 {       
@@ -360,7 +360,7 @@ multimap <int, int>* sortShuffle(multimap <int, int> *ptr[], int num_maps, int n
 void* mapIntegerSort(void * input)
 {
     string s = *reinterpret_cast<string*>(input);
-    cout << s + "\n\n";
+    //cout << s + "\n\n";
     
     multimap<int, int>* map = new multimap<int, int>;
     
@@ -386,9 +386,11 @@ void* mapIntegerSort(void * input)
     }
     
     stringstream ss;
+	//cout << "gets here\n";
     boost::archive::text_oarchive oarch(ss);
     oarch << map;
-    string temp = ss.str();
+    //cout << "does not get here\n";
+	string temp = ss.str();
     const char* ctemp = temp.c_str();
     int size = strlen(ctemp)+1;
     
@@ -450,7 +452,27 @@ void combineAndOutput(void ** inMap, char* output_file, int num_reduces)
   }
   else
   {
-
+     map<int, int>** maps = reinterpret_cast<map<int,int>**>(inMap);
+      map<int, int> outmap;
+      map<int, int> :: iterator itr;
+      
+      for(int i = 0; i < num_reduces; i++)
+      {
+          for(itr = maps[i]->begin(); itr != maps[i]->end(); itr++)
+          {
+              outmap.insert(make_pair(itr->first,itr->second));
+          }
+      }
+      
+      ofstream outfile;
+      outfile.open (output_file);
+      
+      for(itr = outmap.begin(); itr != outmap.end(); itr++)
+      {
+          outfile << itr->first << '\t' << itr->second << '\n';
+      }
+      
+      outfile.close();
   }
 } 
 
@@ -549,174 +571,353 @@ int main(int argc, const char* argv[])
 	//threads
 	if(strcmp(impl, "threads") == 0)
 	{
-		threads = 1;
-		pthread_t mapThreads[num_maps];
-		multimap<string, int>** returnValues = new multimap<string, int>*[num_maps];
-		multimap<string, int>* shuffledMap = new multimap<string, int>[num_reduces];
-    map<string, int>** reduced = new map<string, int>*[num_reduces];
+        //wordCount
+        if(mapapp == &mapWordCount){
+            threads = 1;
+            pthread_t mapThreads[num_maps];
+            multimap<string, int>** returnValues = new multimap<string, int>*[num_maps];
+            multimap<string, int>* shuffledMap = new multimap<string, int>[num_reduces];
+            map<string, int>** reduced = new map<string, int>*[num_reduces];
+            
+            int shm_fd = shm_open(mem, O_CREAT | O_RDWR, 0666);
+            ftruncate(shm_fd, SIZE);
+            
+            sem_init(&mutex, 0, 1);
+            
+            for(i = 0; i < num_maps; i++)
+            {
+                pthread_create(&mapThreads[i], NULL, mapapp, (void*)&splitStrings[i]);
+            }
+            
+            for(i = 0; i < num_maps; i++)
+            {
+                pthread_join(mapThreads[i], NULL);
+            }
+            
+            char* ptr = (char*)mmap(0, SIZE, PROT_WRITE, MAP_SHARED, shm_fd, 0);
+            for(i = 0; i < num_maps; i++)
+            {
+                int len;
+                memcpy(&len, ptr, sizeof(int));
+                ptr += sizeof(int);
+                char* ctemp = (char*)malloc(len);
+                strcpy(ctemp, ptr);
+                ptr += strlen(ctemp) + 1;
+                stringstream ss;
+                ss << ctemp;
+                boost::archive::text_iarchive iarch(ss);
+                iarch >> returnValues[i];
                 
-    int shm_fd = shm_open(mem, O_CREAT | O_RDWR, 0666);
-    ftruncate(shm_fd, SIZE);
-
-    sem_init(&mutex, 0, 1); 
-
-		for(i = 0; i < num_maps; i++)
-		{
-			pthread_create(&mapThreads[i], NULL, mapapp, (void*)&splitStrings[i]);
-		}
-
-		for(i = 0; i < num_maps; i++)
-		{
-			pthread_join(mapThreads[i], NULL);
-		}
-
-   	char* ptr = (char*)mmap(0, SIZE, PROT_WRITE, MAP_SHARED, shm_fd, 0);
-		for(i = 0; i < num_maps; i++)
-		{
-    		int len;
-    		memcpy(&len, ptr, sizeof(int));
-    		ptr += sizeof(int);
-    		char* ctemp = (char*)malloc(len);
-    		strcpy(ctemp, ptr);
-    		ptr += strlen(ctemp) + 1;
-   			stringstream ss;
-   			ss << ctemp;
-   			boost::archive::text_iarchive iarch(ss);
-   			iarch >> returnValues[i];
-
-   			free(ctemp);
-		}
-
-    offset = 0;
-
-		shuffledMap = wordShuffle(returnValues, num_maps, num_reduces);
-
-    pthread_t reduceThreads[num_reduces];
-
-    for(i = 0; i < num_reduces; i++)
-    {
-      pthread_create(&reduceThreads[i], NULL, redapp, (void*)&shuffledMap[i]);
-    }
-
-    for(i = 0; i < num_reduces; i++)
-    {
-      pthread_join(reduceThreads[i], NULL);
-    }
-
-    ptr = (char*)mmap(0, SIZE, PROT_WRITE, MAP_SHARED, shm_fd, 0);
-
-    for(i = 0; i < num_reduces; i++)
-    {
-        int len;
-        memcpy(&len, ptr, sizeof(int));
-
-        ptr += sizeof(int);
-        char* ctemp = (char*)malloc(len);
-        strcpy(ctemp, ptr);
-        ptr += strlen(ctemp) + 1;
-        stringstream ss;
-        ss << ctemp;
-        boost::archive::text_iarchive iarch(ss);
-        iarch >> reduced[i];
-
-        free(ctemp);
-    }
-
-    combineAndOutput((void**)reduced, output_file, num_reduces);
-
-    shm_unlink(mem);
-    sem_destroy(&mutex);
+                free(ctemp);
+            }
+            
+            offset = 0;
+            
+            shuffledMap = wordShuffle(returnValues, num_maps, num_reduces);
+            
+            pthread_t reduceThreads[num_reduces];
+            
+            for(i = 0; i < num_reduces; i++)
+            {
+                pthread_create(&reduceThreads[i], NULL, redapp, (void*)&shuffledMap[i]);
+            }
+            
+            for(i = 0; i < num_reduces; i++)
+            {
+                pthread_join(reduceThreads[i], NULL);
+            }
+            
+            ptr = (char*)mmap(0, SIZE, PROT_WRITE, MAP_SHARED, shm_fd, 0);
+            
+            for(i = 0; i < num_reduces; i++)
+            {
+                int len;
+                memcpy(&len, ptr, sizeof(int));
+                
+                ptr += sizeof(int);
+                char* ctemp = (char*)malloc(len);
+                strcpy(ctemp, ptr);
+                ptr += strlen(ctemp) + 1;
+                stringstream ss;
+                ss << ctemp;
+                boost::archive::text_iarchive iarch(ss);
+                iarch >> reduced[i];
+                
+                free(ctemp);
+            }
+            
+            combineAndOutput((void**)reduced, output_file, num_reduces);
+            
+            shm_unlink(mem);
+            sem_destroy(&mutex);
+        }
+        //integerSort
+        else{
+            threads = 1;
+            pthread_t mapThreads[num_maps];
+            multimap<int, int>** returnValues = new multimap<int, int>*[num_maps];
+            multimap<int, int>* shuffledMap = new multimap<int, int>[num_reduces];
+            map<int, int>** reduced = new map<int, int>*[num_reduces];
+            
+            int shm_fd = shm_open(mem, O_CREAT | O_RDWR, 0666);
+            ftruncate(shm_fd, SIZE);
+            
+            sem_init(&mutex, 0, 1);
+            
+            for(i = 0; i < num_maps; i++)
+            {
+                pthread_create(&mapThreads[i], NULL, mapapp, (void*)&splitStrings[i]);
+            }
+            
+            for(i = 0; i < num_maps; i++)
+            {
+                pthread_join(mapThreads[i], NULL);
+            }
+            
+            char* ptr = (char*)mmap(0, SIZE, PROT_WRITE, MAP_SHARED, shm_fd, 0);
+            for(i = 0; i < num_maps; i++)
+            {
+                int len;
+                memcpy(&len, ptr, sizeof(int));
+                ptr += sizeof(int);
+                char* ctemp = (char*)malloc(len);
+                strcpy(ctemp, ptr);
+                ptr += strlen(ctemp) + 1;
+                stringstream ss;
+                ss << ctemp;
+		cout << len << "len\n";
+		cout << "gets here\n";
+                boost::archive::text_iarchive iarch(ss);
+		cout << "does not get here\n";  
+              iarch >> returnValues[i];
+                free(ctemp);
+            }
+            
+            offset = 0;
+            
+            shuffledMap = sortShuffle(returnValues, num_maps, num_reduces);
+            
+            pthread_t reduceThreads[num_reduces];
+            
+            for(i = 0; i < num_reduces; i++)
+            {
+                pthread_create(&reduceThreads[i], NULL, redapp, (void*)&shuffledMap[i]);
+            }
+            
+            for(i = 0; i < num_reduces; i++)
+            {
+                pthread_join(reduceThreads[i], NULL);
+            }
+            
+            ptr = (char*)mmap(0, SIZE, PROT_WRITE, MAP_SHARED, shm_fd, 0);
+            
+            for(i = 0; i < num_reduces; i++)
+            {
+                int len;
+                memcpy(&len, ptr, sizeof(int));
+                
+                ptr += sizeof(int);
+                char* ctemp = (char*)malloc(len);
+                strcpy(ctemp, ptr);
+                ptr += strlen(ctemp) + 1;
+                stringstream ss;
+                ss << ctemp;
+                boost::archive::text_iarchive iarch(ss);
+                iarch >> reduced[i];
+                
+                free(ctemp);
+            }
+            
+            combineAndOutput((void**)reduced, output_file, num_reduces);
+            
+            shm_unlink(mem);
+            sem_destroy(&mutex);
+        }
+		
 	}
 	//proccesses
 	else
 	{
-		multimap<string, int>** returnValues = new multimap<string, int>*[num_maps];
-    multimap<string, int>* shuffledMap = new multimap<string, int>[num_reduces];
-    map<string, int>** reduced = new map<string, int>*[num_reduces];
+        //wordCount
+        if(mapapp == &mapWordCount){
+            multimap<string, int>** returnValues = new multimap<string, int>*[num_maps];
+            multimap<string, int>* shuffledMap = new multimap<string, int>[num_reduces];
+            map<string, int>** reduced = new map<string, int>*[num_reduces];
+            
+            int shm_fd = shm_open(mem, O_CREAT | O_RDWR, 0666);
+            ftruncate(shm_fd, SIZE);
+            
+            char* ptr = (char*)mmap(0, SIZE, PROT_WRITE, MAP_SHARED, shm_fd, 0);
+            int temp = 0;
+            memcpy(ptr, &temp, sizeof(int));
+            
+            sem = sem_open(sema, O_CREAT | O_RDWR, 0644, 0);
+            sem_post(sem);
+            
+            pid_t pid;
+            
+            for(i = 0; i < num_maps; i++)
+            {
+                pid = fork();
+                if(pid == 0)
+                {
+                    mapWordCount((void*)&splitStrings[i]);
+                    exit(0);
+                }
+                else continue;
+            }
+            
+            while(wait(NULL) > 0);
+            
+            ptr += sizeof(int);
+            for(i = 0; i < num_maps; i++)
+            {
+                int len;
+                memcpy(&len, ptr, sizeof(int));
+                ptr += sizeof(int);
+                char* ctemp = (char*)malloc(len);
+                strcpy(ctemp, ptr);
+                ptr += strlen(ctemp) + 1;
+                stringstream ss;
+                ss << ctemp;
+                boost::archive::text_iarchive iarch(ss);
+                iarch >> returnValues[i];
+                
+                free(ctemp);
+            }
+            
+            shuffledMap = wordShuffle(returnValues, num_maps, num_reduces);
+            
+            ptr = (char*)mmap(0, SIZE, PROT_WRITE, MAP_SHARED, shm_fd, 0);
+            memcpy(ptr, &temp, sizeof(int));
+            
+            for(i = 0; i < num_reduces; i++)
+            {
+                pid = fork();
+                if(pid == 0)
+                {
+                    reduceWordCount((void*)&shuffledMap[i]);
+                    exit(0);
+                }
+                else continue;
+            }
+            
+            while(wait(NULL) > 0);
+            
+            ptr += sizeof(int);
+            for(i = 0; i < num_reduces; i++)
+            {
+                int len;
+                memcpy(&len, ptr, sizeof(int));
+                ptr += sizeof(int);
+                char* ctemp = (char*)malloc(len);
+                strcpy(ctemp, ptr);
+                ptr += strlen(ctemp) + 1;
+                stringstream ss;
+                ss << ctemp;
+                boost::archive::text_iarchive iarch(ss);
+                iarch >> reduced[i];
+                
+                free(ctemp);
+            }
+            
+            combineAndOutput((void**)reduced, output_file, num_reduces);
+            
+            sem_close(sem);
+            shm_unlink(mem);
+            
+        }
+        //integerSort
+        else{
+            multimap<int, int>** returnValues = new multimap<int, int>*[num_maps];
+            multimap<int, int>* shuffledMap = new multimap<int, int>[num_reduces];
+            map<int, int>** reduced = new map<int, int>*[num_reduces];
+            
+            int shm_fd = shm_open(mem, O_CREAT | O_RDWR, 0666);
+            ftruncate(shm_fd, SIZE);
+            
+            char* ptr = (char*)mmap(0, SIZE, PROT_WRITE, MAP_SHARED, shm_fd, 0);
+            int temp = 0;
+            memcpy(ptr, &temp, sizeof(int));
+            
+            sem = sem_open(sema, O_CREAT | O_RDWR, 0644, 0);
+            sem_post(sem);
+            
+            pid_t pid;
+            
+            for(i = 0; i < num_maps; i++)
+            {
+                pid = fork();
+                if(pid == 0)
+                {
+                    mapIntegerSort((void*)&splitStrings[i]);
+                    exit(0);
+                }
+                else continue;
+            }
+            
+            while(wait(NULL) > 0);
+            
+            ptr += sizeof(int);
+            for(i = 0; i < num_maps; i++)
+            {
+                int len;
+                memcpy(&len, ptr, sizeof(int));
+                ptr += sizeof(int);
+                char* ctemp = (char*)malloc(len);
+                strcpy(ctemp, ptr);
+                ptr += strlen(ctemp) + 1;
+                cout << len << "\n";
+		stringstream ss;
+                ss << ctemp;
+                boost::archive::text_iarchive iarch(ss);
+                iarch >> returnValues[i];
+                
+                free(ctemp);
+            }
+            
+            shuffledMap = sortShuffle(returnValues, num_maps, num_reduces);
+            
+            ptr = (char*)mmap(0, SIZE, PROT_WRITE, MAP_SHARED, shm_fd, 0);
+            memcpy(ptr, &temp, sizeof(int));
+            
+            for(i = 0; i < num_reduces; i++)
+            {
+                pid = fork();
+                if(pid == 0)
+                {
+                    reduceIntegerSort((void*)&shuffledMap[i]);
+                    exit(0);
+                }
+                else continue;
+            }
+            
+            while(wait(NULL) > 0);
+            
+            ptr += sizeof(int);
+            for(i = 0; i < num_reduces; i++)
+            {
+                int len;
+                memcpy(&len, ptr, sizeof(int));
+                ptr += sizeof(int);
+                char* ctemp = (char*)malloc(len);
+                strcpy(ctemp, ptr);
+                ptr += strlen(ctemp) + 1;
+                stringstream ss;
+                ss << ctemp;
+                boost::archive::text_iarchive iarch(ss);
+                iarch >> reduced[i];
+                
+                free(ctemp);
+            }
+            
+            combineAndOutput((void**)reduced, output_file, num_reduces);
+            
+            sem_close(sem);
+            shm_unlink(mem);
+            
+        }
 
-		int shm_fd = shm_open(mem, O_CREAT | O_RDWR, 0666);
-    ftruncate(shm_fd, SIZE);
-
- 		char* ptr = (char*)mmap(0, SIZE, PROT_WRITE, MAP_SHARED, shm_fd, 0);
-		int temp = 0;
- 		memcpy(ptr, &temp, sizeof(int));
-
-		sem = sem_open(sema, O_CREAT | O_RDWR, 0644, 0);
-    sem_post(sem); 
-
-  	pid_t pid;
-
-		for(i = 0; i < num_maps; i++)
-		{
-			pid = fork();
-			if(pid == 0)
-			{
-				mapWordCount((void*)&splitStrings[i]);
-				exit(0);
-			}
-			else continue;
-		}
-
-		while(wait(NULL) > 0);
-
- 		ptr += sizeof(int);
-		for(i = 0; i < num_maps; i++)
-		{
-    		int len;
-    		memcpy(&len, ptr, sizeof(int));
-    		ptr += sizeof(int);
-    		char* ctemp = (char*)malloc(len);
-    		strcpy(ctemp, ptr);
-    		ptr += strlen(ctemp) + 1;
-   			stringstream ss;
-   			ss << ctemp;
-   			boost::archive::text_iarchive iarch(ss);
-   			iarch >> returnValues[i];
-
-   			free(ctemp);
-		}
-
-    shuffledMap = wordShuffle(returnValues, num_maps, num_reduces);
-
-    ptr = (char*)mmap(0, SIZE, PROT_WRITE, MAP_SHARED, shm_fd, 0);
-    memcpy(ptr, &temp, sizeof(int));
-
-    for(i = 0; i < num_reduces; i++)
-    {
-      pid = fork();
-      if(pid == 0)
-      {
-        reduceWordCount((void*)&shuffledMap[i]);
-        exit(0);
-      }
-      else continue;
-    }
-
-    while(wait(NULL) > 0);
-
-    ptr += sizeof(int);
-    for(i = 0; i < num_reduces; i++)
-    {
-        int len;
-        memcpy(&len, ptr, sizeof(int));
-        ptr += sizeof(int);
-        char* ctemp = (char*)malloc(len);
-        strcpy(ctemp, ptr);
-        ptr += strlen(ctemp) + 1;
-        stringstream ss;
-        ss << ctemp;
-        boost::archive::text_iarchive iarch(ss);
-        iarch >> reduced[i];
-
-        free(ctemp);
-    }
-
-    combineAndOutput((void**)reduced, output_file, num_reduces);
-    	
-    sem_close(sem);
-    shm_unlink(mem);
-
-	}
-
+       }
 	return 0;
 }
