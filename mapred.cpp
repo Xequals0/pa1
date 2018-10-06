@@ -25,6 +25,7 @@ struct comp {
 
 string* split(int numMaps, ifstream& file)
 {
+	//cout << "numMaps: " << numMaps << "\n";
 	string* out = new string[numMaps];
 	string word;
 	int i = 0;
@@ -33,7 +34,10 @@ string* split(int numMaps, ifstream& file)
 	{
 		out[i % numMaps] += word + " ";
 		i++;
+//		cout << "word: " << word << "\n";
 	}
+
+//	cout << "string out: " << out << "\n";
 
 	return out;
 }
@@ -360,7 +364,7 @@ multimap <int, int>* sortShuffle(multimap <int, int> *ptr[], int num_maps, int n
 void* mapIntegerSort(void * input)
 {
     string s = *reinterpret_cast<string*>(input);
-    //cout << s + "\n\n";
+  //  cout << "entering mapIntegerSort\n\tinput string: " << s <<"\n\n";
     
     multimap<int, int>* map = new multimap<int, int>;
     
@@ -373,7 +377,7 @@ void* mapIntegerSort(void * input)
         int num;
         if ( ! (istringstream(*vec_itr) >> num) )
             num = 0;
-        
+        //cout << "num: " << num << "\n";
         if((*vec_itr)[0] != '0' && num == 0) continue;
         
         multimap <int, int> :: iterator map_itr = map->find(num);
@@ -384,13 +388,21 @@ void* mapIntegerSort(void * input)
             map_itr->second = map_itr->second + 1;
         }
     }
-    
+   
+
+	//printing out multimap
+/*	multimap<int, int> :: iterator itr2;
+	for(itr2 = map->begin(); itr2 != map->end(); itr2++){
+		cout << itr2->first << '\t' << itr2->second << '\n';
+	} 
+*/  
+
     stringstream ss;
-	//cout << "gets here\n";
     boost::archive::text_oarchive oarch(ss);
     oarch << map;
-    //cout << "does not get here\n";
-	string temp = ss.str();
+  
+    string temp = ss.str();
+	//	cout << "temp: " << temp << "\n\n";
     const char* ctemp = temp.c_str();
     int size = strlen(ctemp)+1;
     
@@ -403,7 +415,6 @@ void* mapIntegerSort(void * input)
         ptr += offset;
         memcpy(ptr, &size, sizeof(size_t));
         strcpy(ptr + sizeof(size_t), ctemp);
-        
         offset += sizeof(size_t) + size;
         sem_post(&mutex);
     }
@@ -584,7 +595,7 @@ int main(int argc, const char* argv[])
             
             sem_init(&mutex, 0, 1);
             
-            for(i = 0; i < num_maps; i++)
+           for(i = 0; i < num_maps; i++)
             {
                 pthread_create(&mapThreads[i], NULL, mapapp, (void*)&splitStrings[i]);
             }
@@ -679,16 +690,13 @@ int main(int argc, const char* argv[])
             {
                 int len;
                 memcpy(&len, ptr, sizeof(int));
-                ptr += sizeof(int);
+                ptr += sizeof(size_t); //changed this from sizeof(int)
                 char* ctemp = (char*)malloc(len);
                 strcpy(ctemp, ptr);
                 ptr += strlen(ctemp) + 1;
                 stringstream ss;
                 ss << ctemp;
-		cout << len << "len\n";
-		cout << "gets here\n";
-                boost::archive::text_iarchive iarch(ss);
-		cout << "does not get here\n";  
+                boost::archive::text_iarchive iarch(ss);  
               iarch >> returnValues[i];
                 free(ctemp);
             }
