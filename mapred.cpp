@@ -3,7 +3,7 @@
 
 const char* mem = "memory";
 const char* sema = "semaphore";
-int SIZE = 0;
+const int SIZE = 20000000;
 sem_t mutex;
 sem_t * sem;
 int threads = 0;
@@ -217,7 +217,6 @@ multimap <string, int>* wordShuffle(multimap <string, int> *ptr[], int num_maps,
      char* partition = (char*)malloc(sizeof(char)*(num_reduces - 1));
      multimap <string, int> b1;
      multimap <string, int> :: iterator itr;
-    
      int split_val = 0;
      if(num_reduces != 1) {
       split_val = floor(26 / (num_reduces - 1));
@@ -238,6 +237,7 @@ multimap <string, int>* wordShuffle(multimap <string, int> *ptr[], int num_maps,
       multimap <string, int> current;
       multimap <string, int> :: iterator traverse;
       int index = 0; i = 0;
+
       for(i = 0; i < num_maps; i++){
         current = *ptr[i]; 
         for (traverse = current.begin(); traverse != current.end(); traverse++) 
@@ -246,6 +246,7 @@ multimap <string, int>* wordShuffle(multimap <string, int> *ptr[], int num_maps,
              int j;
              for(j = 0; j < part_size; j++)
              {
+
                   if(num_reduces == 1)
                   {
                        index = 0;
@@ -272,6 +273,7 @@ multimap <string, int>* wordShuffle(multimap <string, int> *ptr[], int num_maps,
                        break;
                   }
              }
+
              *toReduce[index].insert(make_pair <string, int> (traverse -> first, traverse -> second));
         } 
      } free(partition);
@@ -585,8 +587,7 @@ int main(int argc, const char* argv[])
 
 //	printf("%s:%d:%d:%s:%s\n", impl, num_maps, num_reduces, input_file, output_file);
 
-	ifstream file(input_file, ios::binary | ios::ate);
-	SIZE = 2 * file.tellg();
+	ifstream file(input_file);
 	string* splitStrings = split(num_maps, file);
 
 	//threads
@@ -802,9 +803,9 @@ int main(int argc, const char* argv[])
                 
                 free(ctemp);
             }
-            
+
             shuffledMap = wordShuffle(returnValues, num_maps, num_reduces);
-            
+
             ptr = (char*)mmap(0, SIZE, PROT_WRITE, MAP_SHARED, shm_fd, 0);
             memcpy(ptr, &temp, sizeof(int));
             
@@ -820,7 +821,7 @@ int main(int argc, const char* argv[])
             }
             
             while(wait(NULL) > 0);
-            
+
             ptr += sizeof(int);
             for(i = 0; i < num_reduces; i++)
             {
