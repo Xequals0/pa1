@@ -3,7 +3,7 @@
 
 const char* mem = "memory";
 const char* sema = "semaphore";
-const int SIZE = 1000000;
+int SIZE = 0;
 sem_t mutex;
 sem_t * sem;
 int threads = 0;
@@ -585,7 +585,8 @@ int main(int argc, const char* argv[])
 
 //	printf("%s:%d:%d:%s:%s\n", impl, num_maps, num_reduces, input_file, output_file);
 
-	ifstream file(input_file);
+	ifstream file(input_file, ios::binary | ios::ate);
+	SIZE = 2 * file.tellg();
 	string* splitStrings = split(num_maps, file);
 
 	//threads
@@ -840,6 +841,7 @@ int main(int argc, const char* argv[])
             combineAndOutput((void**)reduced, output_file, num_reduces);
             
             sem_close(sem);
+            sem_unlink(sema);
             shm_unlink(mem);
             
         }
@@ -929,6 +931,7 @@ int main(int argc, const char* argv[])
             combineAndOutput((void**)reduced, output_file, num_reduces);
             
             sem_close(sem);
+            sem_unlink(sema);
             shm_unlink(mem);
             
 
