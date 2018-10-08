@@ -588,7 +588,7 @@ int main(int argc, const char* argv[])
 //	printf("%s:%d:%d:%s:%s\n", impl, num_maps, num_reduces, input_file, output_file);
 
 	ifstream file(input_file, ifstream::ate);
-	SIZE = 2 * file.tellg();
+	SIZE = 2 * file.tellg() + 100000;
 	file.seekg(0, ifstream::beg);
 	string* splitStrings = split(num_maps, file);
 
