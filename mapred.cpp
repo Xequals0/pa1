@@ -3,7 +3,7 @@
 
 const char* mem = "memory";
 const char* sema = "semaphore";
-const int SIZE = 100000;
+const int SIZE = 1000000;
 sem_t mutex;
 sem_t * sem;
 int threads = 0;
@@ -396,7 +396,6 @@ void* mapIntegerSort(void * input)
 		cout << itr2->first << '\t' << itr2->second << '\n';
 	} 
 */  
-
     stringstream ss;
     boost::archive::text_oarchive oarch(ss);
     oarch << map;
@@ -410,12 +409,11 @@ void* mapIntegerSort(void * input)
     {
         sem_wait(&mutex);
         int shm_fd = shm_open(mem, O_RDWR, 0666);
-        
         char* ptr = (char*)mmap(0, SIZE, PROT_WRITE, MAP_SHARED, shm_fd, 0);
         ptr += offset;
-        memcpy(ptr, &size, sizeof(size_t));
-        strcpy(ptr + sizeof(size_t), ctemp);
-        offset += sizeof(size_t) + size;
+        memcpy(ptr, &size, sizeof(int));
+        strcpy(ptr + sizeof(int), ctemp);
+        offset += sizeof(int) + size;
         sem_post(&mutex);
     }
     else
@@ -425,11 +423,11 @@ void* mapIntegerSort(void * input)
         char* ptr = (char*)mmap(0, SIZE, PROT_WRITE, MAP_SHARED, shm_fd, 0);
         int off;
         memcpy(&off, ptr, sizeof(int));
-        int temp = off + sizeof(size_t) + size;
+        int temp = off + sizeof(int) + size;
         memcpy(ptr, &temp, sizeof(int));
         ptr += sizeof(int) + off;
-        memcpy(ptr, &size, sizeof(size_t));
-        strcpy(ptr + sizeof(size_t), ctemp);
+        memcpy(ptr, &size, sizeof(int));
+        strcpy(ptr + sizeof(int), ctemp);
         sem_post(sem);
     }
     return NULL;
@@ -480,7 +478,7 @@ void combineAndOutput(void ** inMap, char* output_file, int num_reduces)
       
       for(itr = outmap.begin(); itr != outmap.end(); itr++)
       {
-          outfile << itr->first << '\t' << itr->second << '\n';
+          outfile << itr->first << "\n";
       }
       
       outfile.close();
@@ -684,20 +682,20 @@ int main(int argc, const char* argv[])
             {
                 pthread_join(mapThreads[i], NULL);
             }
-            
+
             char* ptr = (char*)mmap(0, SIZE, PROT_WRITE, MAP_SHARED, shm_fd, 0);
             for(i = 0; i < num_maps; i++)
             {
                 int len;
                 memcpy(&len, ptr, sizeof(int));
-                ptr += sizeof(size_t); //changed this from sizeof(int)
+                ptr += sizeof(int); //changed this from sizeof(int)
                 char* ctemp = (char*)malloc(len);
                 strcpy(ctemp, ptr);
                 ptr += strlen(ctemp) + 1;
                 stringstream ss;
                 ss << ctemp;
                 boost::archive::text_iarchive iarch(ss);  
-              iarch >> returnValues[i];
+                iarch >> returnValues[i];
                 free(ctemp);
             }
             
@@ -723,7 +721,6 @@ int main(int argc, const char* argv[])
             {
                 int len;
                 memcpy(&len, ptr, sizeof(int));
-                
                 ptr += sizeof(int);
                 char* ctemp = (char*)malloc(len);
                 strcpy(ctemp, ptr);
@@ -875,8 +872,7 @@ int main(int argc, const char* argv[])
                 char* ctemp = (char*)malloc(len);
                 strcpy(ctemp, ptr);
                 ptr += strlen(ctemp) + 1;
-                cout << len << "\n";
-		stringstream ss;
+		            stringstream ss;
                 ss << ctemp;
                 boost::archive::text_iarchive iarch(ss);
                 iarch >> returnValues[i];
