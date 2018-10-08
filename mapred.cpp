@@ -478,7 +478,13 @@ void combineAndOutput(void ** inMap, char* output_file, int num_reduces)
       
       for(itr = outmap.begin(); itr != outmap.end(); itr++)
       {
-          outfile << itr->first << "\n";
+          //outfile << itr->first << "\n";
+	  int x = itr->second;
+	  //cout << "x: " << x << "\n";
+	  while(x > 0){
+	  	outfile << itr->first << "\n";
+		x--;
+ 	  }
       }
       
       outfile.close();
