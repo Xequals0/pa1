@@ -583,7 +583,7 @@ int main(int argc, const char* argv[])
 		}
 	}
 
-	printf("%s:%d:%d:%s:%s\n", impl, num_maps, num_reduces, input_file, output_file);
+//	printf("%s:%d:%d:%s:%s\n", impl, num_maps, num_reduces, input_file, output_file);
 
 	ifstream file(input_file);
 	string* splitStrings = split(num_maps, file);
