@@ -496,6 +496,11 @@ int main(int argc, const char* argv[])
 	int num_reduces = 0;
 	int i;
 
+      /*  struct timeval startTime, endTime;
+        long ti,tf = 0;
+        double totalRuntime = 0.0;
+        gettimeofday(&startTime,NULL); //Start time
+     */
 	for(i=1; i < argc; i++)
 	{
 		if(strcmp(argv[i], "--app") == 0)
@@ -920,8 +925,15 @@ int main(int argc, const char* argv[])
             sem_close(sem);
             shm_unlink(mem);
             
+
         }
 
        }
+         /*   gettimeofday(&endTime,NULL); //End time
+            ti = (startTime.tv_sec * 1000000) + startTime.tv_usec;
+            tf = (endTime.tv_sec * 1000000) + endTime.tv_usec;
+            totalRuntime = tf - ti;
+            cout << "The total runtime is: " << totalRuntime << " microseconds. \n";
+         */
 	return 0;
 }
